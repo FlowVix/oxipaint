@@ -1,0 +1,69 @@
+[gd_scene load_steps=9 format=3 uid="uid://ttlycp65duyy"]
+
+[ext_resource type="Theme" uid="uid://qq5s8aaem8j6" path="res://resources/themes/GlobalTheme.tres" id="1_tyjb3"]
+[ext_resource type="Texture2D" uid="uid://c8kikuadt68di" path="res://resources/icons/color-slider-grabber.svg" id="2_6hxp7"]
+[ext_resource type="Shader" uid="uid://cdeatd8bbamet" path="res://resources/shaders/ColorSliderInput.gdshader" id="3_rkqph"]
+
+[sub_resource type="ViewportTexture" id="ViewportTexture_tyjb3"]
+viewport_path = NodePath("SliderViewport")
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_6hxp7"]
+resource_local_to_scene = true
+content_margin_top = 16.0
+texture = SubResource("ViewportTexture_tyjb3")
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_rkqph"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_tpefl"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_tpefl"]
+shader = ExtResource("3_rkqph")
+
+[node name="ColorSliderInput" type="ColorSliderInput"]
+offset_right = 182.0
+offset_bottom = 29.0
+theme = ExtResource("1_tyjb3")
+
+[node name="Label" type="Label" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(16, 0)
+layout_mode = 2
+text = "R"
+horizontal_alignment = 1
+
+[node name="M" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_top = 1
+
+[node name="HSlider" type="HSlider" parent="M"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+theme_override_constants/center_grabber = 1
+theme_override_constants/grabber_offset = 12
+theme_override_icons/grabber = ExtResource("2_6hxp7")
+theme_override_icons/grabber_highlight = ExtResource("2_6hxp7")
+theme_override_styles/slider = SubResource("StyleBoxTexture_6hxp7")
+theme_override_styles/grabber_area = SubResource("StyleBoxEmpty_rkqph")
+theme_override_styles/grabber_area_highlight = SubResource("StyleBoxEmpty_tpefl")
+
+[node name="SpinBox" type="SpinBox" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+update_on_text_changed = true
+select_all_on_focus = true
+
+[node name="SliderViewport" type="SubViewport" parent="."]
+size = Vector2i(100, 16)
+
+[node name="ColorRect" type="ColorRect" parent="SliderViewport"]
+unique_name_in_owner = true
+material = SubResource("ShaderMaterial_tpefl")
+instance_shader_parameters/type = 0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2

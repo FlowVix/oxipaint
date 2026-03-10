@@ -1,0 +1,8 @@
+[gd_resource type="StyleBoxTexture" format=3 uid="uid://cpesklkot1t86"]
+
+[ext_resource type="Texture2D" uid="uid://biqjbpjyga36f" path="res://resources/textures/palette-bg.png" id="1_eo4rk"]
+
+[resource]
+texture = ExtResource("1_eo4rk")
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
