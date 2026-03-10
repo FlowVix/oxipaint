@@ -1,4 +1,6 @@
 use std::cell::RefCell;
+use std::collections::VecDeque;
+use std::fs;
 
 use echo::{App, Builder, tree};
 use glam::{U8Vec4, Vec2, u8vec4, vec2};
@@ -13,10 +15,13 @@ use godot::classes::{
 };
 use godot::global::{HorizontalAlignment, Key};
 use godot::prelude::*;
+use parking_lot::Mutex;
 use uuid::Uuid;
 
+use crate::DIRS;
 use crate::color_panel::slider::{ColorSliderType, color_slider};
 use crate::color_panel::{ColorMode, ColorState, color_picker_widget};
+use crate::extensions::{ExtManager, ExtState, ExtStateRef};
 use crate::popups::{MenuPopup, MenuPopupItem, menu_popup};
 use crate::top_panel::{button_bar, menubar};
 use crate::utils::{FrameSettings, GlamToGodot, GodotToGlam, control, frame, hbox, memo_res, panel, shortcut, vbox};
@@ -78,15 +83,15 @@ impl INode for AppBase {
     }
 }
 
-pub struct Project {
-    pub id: Uuid,
-}
 pub struct State {
-    color: ColorState,
+    pub ext_manager: ExtManager,
+    pub color: ColorState,
 }
 impl State {
     pub fn new() -> Self {
-        Self {
+        _ = fs::create_dir_all(DIRS.data_dir());
+        let mut out = Self {
+            ext_manager: ExtManager::init(),
             color: ColorState {
                 mode: ColorMode::Hsv,
                 main_color: u8vec4(0, 0, 0, 255),
@@ -112,7 +117,18 @@ impl State {
                     .map(|v| (Uuid::new_v4(), u8vec4(v.r8(), v.g8(), v.b8(), 255)))
                     .collect(),
             },
+        };
+        for (_, data) in &mut out.ext_manager.extensions {
+            data.manage_state_and_call(
+                ExtStateRef {
+                    main_color: &mut out.color.main_color,
+                    secondary_color: &mut out.color.secondary_color,
+                    main_color_selected: &mut out.color.main_color_selected,
+                },
+                |f, s| f.__init.call(s, ()).unwrap(),
+            )
         }
+        out
     }
 }
 

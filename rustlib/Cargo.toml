@@ -8,7 +8,6 @@ crate-type = ["cdylib"]
 
 [dependencies]
 godot = { git = "https://github.com/godot-rust/gdext", rev = "869a336fb981f4c676a0ccb6a9422fad95a4138e", features = [
-
 ] }
 uuid = { version = "1.19.0", features = ["v4"] }
 ahash = "0.8.12"
@@ -20,3 +19,7 @@ arboard = { version = "3.6.1", features = ["wayland-data-control"] }
 echo = { path = "../../echo/echo" }
 glam = "0.32.1"
 directories = "6.0.0"
+wasmtime = "42.0.1"
+wasmtime-wasi = "42.0.1"
+walkdir = "2.5.0"
+parking_lot = "0.12.5"
