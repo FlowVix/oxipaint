@@ -20,7 +20,7 @@ use crate::color_panel::slider::{ColorSliderType, color_slider};
 use crate::popups::{MenuPopup, MenuPopupItem, menu_popup};
 use crate::utils::{FrameSettings, GlamToGodot, control, frame, hbox, memo_res, panel, shortcut, vbox};
 
-#[tree(Node)]
+#[tree(Node())]
 pub fn menubar(state: &mut State) {
     MenuBar..{
         INIT(theme_type_variation = "TopMenu", anchors_preset = LayoutPreset::CENTER, h_size_flags = SizeFlags::SHRINK_CENTER);
@@ -34,7 +34,9 @@ pub fn menubar(state: &mut State) {
                             text: "New".into(),
                             icon: "file-plus.svg".into(),
                             key: Some(shortcut(Key::N, true, false, false)),
-                            cb: |_| {},
+                            cb: |state| {
+                                state.open_new_file_dialog();
+                            },
                         },
                         MenuPopupItem::Simple {
                             text: "Open".into(),
@@ -91,11 +93,11 @@ pub fn menubar(state: &mut State) {
     };
 }
 
-#[tree(Node)]
+#[tree(Node())]
 pub fn button_bar(state: &mut State) {
     hbox(4, SizeFlags::SHRINK_CENTER, SizeFlags::SHRINK_CENTER)..{
         {
-            #[tree(Node)]
+            #[tree(Node())]
             fn add_button(icon: &str, tooltip: &str, cb: impl FnOnce()) {
                 Button..{
                     INIT(
@@ -113,7 +115,7 @@ pub fn button_bar(state: &mut State) {
             "file-plus.svg",
             "New",
             Box::new(|| {
-                godot_print!("bfjkvdhjfg");
+                state.open_new_file_dialog();
             }),
         )..{};
         add_button(

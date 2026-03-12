@@ -148,7 +148,7 @@ impl ColorState {
     }
 }
 
-#[tree(Node)]
+#[tree(Node())]
 pub fn color_picker_widget(state: &mut ColorState) {
     frame(FrameSettings {
         panel: true,
@@ -162,7 +162,7 @@ pub fn color_picker_widget(state: &mut ColorState) {
                     INIT(custom_minimum_size = vec2(54.0, 54.0).to_godot(), z_index = 1);
 
                     {
-                        #[tree(Node)]
+                        #[tree(Node())]
                         fn color_button(pos: Vec2, color: U8Vec4, main: bool, state: &mut ColorState) {
                             Button..{
                                 INIT(

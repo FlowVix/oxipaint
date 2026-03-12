@@ -4,12 +4,14 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 
-use ahash::{AHashMap, AHashSet};
+use ahash::{AHashMap, AHashSet, AHasher};
 use glam::{U8Vec4, u8vec4};
 use godot::global::{godot_error, godot_print, godot_warn};
 use godot::obj::Gd;
 use indexmap::IndexMap;
+use uuid::Uuid;
 use walkdir::WalkDir;
 use wasmtime::{Caller, Engine, Instance, Linker, Module, Store, TypedFunc};
 use wasmtime_wasi::WasiCtx;
@@ -17,6 +19,7 @@ use wasmtime_wasi::p1::WasiP1Ctx;
 
 use crate::DIRS;
 use crate::app::AppBase;
+use crate::utils::temp_id;
 
 pub struct ExtExportedFuncs {
     pub __init: TypedFunc<(), ()>,
@@ -75,11 +78,15 @@ impl ExtData {
     /// doing this for safety so that we never forget to send and modify values
     pub fn manage_state_and_call(&mut self, mut state: ExtStateRef, cb: impl FnOnce(&ExtExportedFuncs, &mut Store<StoreData>)) {
         self.store.data_mut().state = state.deref();
+        self.store.data_mut().registrations.clear();
         cb(&self.funcs, &mut self.store);
         state.set(&self.store.data().state);
     }
 }
 
+pub enum ExtRegister {
+    Tool(String, String),
+}
 pub struct ExtManager {
     pub engine: Engine,
     pub extensions: IndexMap<String, ExtData>,
@@ -88,6 +95,7 @@ pub struct StoreData {
     pub ext_name: String,
     pub wasi: WasiP1Ctx,
     pub state: ExtState,
+    pub registrations: AHashMap<u32, ExtRegister>,
 }
 
 fn build_linker(engine: &Engine) -> Linker<StoreData> {
@@ -95,36 +103,24 @@ fn build_linker(engine: &Engine) -> Linker<StoreData> {
     wasmtime_wasi::p1::add_to_linker_sync(&mut linker, |s: &mut StoreData| &mut s.wasi).unwrap();
 
     linker
-        .func_wrap("ext", "__print", |mut caller: Caller<'_, StoreData>, ptr: i32, len: i32| {
+        .func_wrap("ext", "__print", |mut caller: Caller<'_, StoreData>, ptr: u32, len: u32| {
             let memory = caller.get_export("memory").and_then(|e| e.into_memory()).expect("guest exported memory");
 
-            godot_print!(
-                "[{}] {}",
-                &caller.data().ext_name,
-                std::str::from_utf8(&memory.data(&caller)[ptr as usize..(ptr + len) as usize]).unwrap()
-            );
+            godot_print!("[{}] {}", &caller.data().ext_name, str::from_utf8(&memory.data(&caller)[ptr as usize..(ptr + len) as usize]).unwrap());
         })
         .unwrap();
     linker
-        .func_wrap("ext", "__warn", |mut caller: Caller<'_, StoreData>, ptr: i32, len: i32| {
+        .func_wrap("ext", "__warn", |mut caller: Caller<'_, StoreData>, ptr: u32, len: u32| {
             let memory = caller.get_export("memory").and_then(|e| e.into_memory()).expect("guest exported memory");
 
-            godot_warn!(
-                "[{}] {}",
-                &caller.data().ext_name,
-                std::str::from_utf8(&memory.data(&caller)[ptr as usize..(ptr + len) as usize]).unwrap()
-            );
+            godot_warn!("[{}] {}", &caller.data().ext_name, str::from_utf8(&memory.data(&caller)[ptr as usize..(ptr + len) as usize]).unwrap());
         })
         .unwrap();
     linker
-        .func_wrap("ext", "__error", |mut caller: Caller<'_, StoreData>, ptr: i32, len: i32| {
+        .func_wrap("ext", "__error", |mut caller: Caller<'_, StoreData>, ptr: u32, len: u32| {
             let memory = caller.get_export("memory").and_then(|e| e.into_memory()).expect("guest exported memory");
 
-            godot_error!(
-                "[{}] {}",
-                &caller.data().ext_name,
-                std::str::from_utf8(&memory.data(&caller)[ptr as usize..(ptr + len) as usize]).unwrap()
-            );
+            godot_error!("[{}] {}", &caller.data().ext_name, str::from_utf8(&memory.data(&caller)[ptr as usize..(ptr + len) as usize]).unwrap());
         })
         .unwrap();
     linker
@@ -159,6 +155,24 @@ fn build_linker(engine: &Engine) -> Linker<StoreData> {
             caller.data_mut().state.main_color_selected = to > 0;
         })
         .unwrap();
+    linker
+        .func_wrap(
+            "ext",
+            "__register_tool",
+            |mut caller: Caller<'_, StoreData>, name_ptr: u32, name_len: u32, icon_ptr: u32, icon_len: u32| -> u32 {
+                let memory = caller.get_export("memory").and_then(|e| e.into_memory()).expect("guest exported memory");
+
+                let name = str::from_utf8(&memory.data(&caller)[name_ptr as usize..(name_ptr + name_len) as usize]).unwrap().to_string();
+                let icon = str::from_utf8(&memory.data(&caller)[icon_ptr as usize..(icon_ptr + icon_len) as usize]).unwrap().to_string();
+
+                let id = temp_id();
+
+                caller.data_mut().registrations.insert(id, ExtRegister::Tool(name, icon));
+
+                id
+            },
+        )
+        .unwrap();
 
     linker
 }
@@ -184,6 +198,7 @@ fn build_extension(name: &str, path: &Path, engine: &Engine, linker: &mut Linker
             ext_name: name.to_string(),
             wasi,
             state: ExtState::default(),
+            registrations: AHashMap::new(),
             // state: state.clone(),
         },
     );

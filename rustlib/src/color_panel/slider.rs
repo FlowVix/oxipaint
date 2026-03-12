@@ -7,7 +7,7 @@ use godot::obj::NewGd;
 use godot::prelude::*;
 
 use crate::color_panel::{ColorMode, ColorState};
-use crate::utils::{GlamToGodot, hsl_to_rgb, hsv_to_rgb, margin, memo_res, okhsl_to_rgb, okhsv_to_rgb, rgb_to_hsl, rgb_to_hsv, rgb_to_okhsl, rgb_to_okhsv};
+use crate::utils::{GlamToGodot, hsl_to_rgb, hsv_to_rgb, margin, memo_res, okhsl_to_rgb, okhsv_to_rgb, rgb_to_hsl, rgb_to_hsv, rgb_to_okhsl, rgb_to_okhsv, spinbox};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ColorSliderType {
@@ -29,7 +29,7 @@ pub enum ColorSliderType {
     A,
 }
 
-#[tree(Node)]
+#[tree(Node())]
 pub fn color_slider(letter: &str, typ: ColorSliderType, max: u32, state: &mut ColorState) {
     HBoxContainer..{
         {
@@ -92,17 +92,14 @@ pub fn color_slider(letter: &str, typ: ColorSliderType, max: u32, state: &mut Co
                 });
             };
         };
-        SpinBox..{
-            INIT(update_on_text_changed = true, select_all_on_focus = true, max_value = max);
+        spinbox()..{
+            INIT(max_value = max);
             {
-                if __builder.init() {
-                    __builder.node().get_line_edit().unwrap().set_context_menu_enabled(false);
-                }
                 __builder.node().set_value_no_signal(*state.get_value(typ) as f64);
             }
+
             ON(value_changed = |args| {
-                let to = args[0].to::<f32>() as u32;
-                changed(state, to);
+                changed(state, args[0].to::<f32>() as u32);
             });
         };
         SubViewport..{

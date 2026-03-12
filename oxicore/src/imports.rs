@@ -11,7 +11,9 @@ unsafe extern "C" {
     fn __set_main_color(to: u32);
     fn __set_secondary_color(to: u32);
     fn __set_main_color_selected(to: u32);
+    fn __register_tool(name_ptr: *const u8, name_len: usize, icon_ptr: *const u8, icon_len: usize) -> u32;
 }
+
 #[macro_export]
 macro_rules! print {
     ($($t:tt)*) => {
@@ -62,4 +64,7 @@ pub fn set_main_color_selected(to: bool) {
     unsafe {
         __set_main_color_selected(to as u32);
     }
+}
+pub fn register_tool(name: &str, icon_path: &str) -> u32 {
+    unsafe { __register_tool(name.as_ptr(), name.len(), icon_path.as_ptr(), icon_path.len()) }
 }

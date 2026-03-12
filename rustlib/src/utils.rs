@@ -3,12 +3,14 @@ use std::hash::Hash;
 use std::io;
 use std::mem::ManuallyDrop;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use ahash::AHashMap;
 use echo::{Builder, tree};
 use glam::*;
-use godot::classes::control::SizeFlags;
-use godot::classes::{Control, HBoxContainer, InputEventKey, MarginContainer, PanelContainer, Shortcut, VBoxContainer};
+use godot::classes::control::{LayoutPreset, SizeFlags};
+use godot::classes::window::WindowInitialPosition;
+use godot::classes::{Control, HBoxContainer, InputEventKey, MarginContainer, PanelContainer, Shortcut, SpinBox, Theme, VBoxContainer, Window};
 use godot::global::Key;
 use godot::prelude::*;
 
@@ -162,7 +164,7 @@ impl Default for FrameSettings {
     }
 }
 
-#[tree(Node)]
+#[tree(Node())]
 pub fn margin(l: i32, u: i32, r: i32, d: i32, h: SizeFlags, v: SizeFlags) {
     MarginContainer..{
         INIT(
@@ -173,38 +175,38 @@ pub fn margin(l: i32, u: i32, r: i32, d: i32, h: SizeFlags, v: SizeFlags) {
             size_flags_horizontal = h,
             size_flags_vertical = v,
         );
-        BODY;
+        BODY();
     };
 }
-#[tree(Node)]
+#[tree(Node())]
 pub fn hbox(sep: i32, h: SizeFlags, v: SizeFlags) {
     HBoxContainer..{
         INIT(theme(constant, separation) = sep, size_flags_horizontal = h, size_flags_vertical = v);
-        BODY;
+        BODY();
     };
 }
-#[tree(Node)]
+#[tree(Node())]
 pub fn vbox(sep: i32, h: SizeFlags, v: SizeFlags) {
     VBoxContainer..{
         INIT(theme(constant, separation) = sep, size_flags_horizontal = h, size_flags_vertical = v);
-        BODY;
+        BODY();
     };
 }
-#[tree(Node)]
+#[tree(Node())]
 pub fn panel(theme_override: &str, h: SizeFlags, v: SizeFlags) {
     PanelContainer..{
         INIT(theme_type_variation = theme_override, size_flags_horizontal = h, size_flags_vertical = v);
-        BODY;
+        BODY();
     };
 }
-#[tree(Node)]
+#[tree(Node())]
 pub fn control(h: SizeFlags, v: SizeFlags) {
     Control..{
         INIT(size_flags_horizontal = h, size_flags_vertical = v);
-        BODY;
+        BODY();
     };
 }
-#[tree(Node)]
+#[tree(Node())]
 pub fn frame(settings: FrameSettings) {
     margin(settings.margins[0], settings.margins[1], settings.margins[2], settings.margins[3], settings.h, settings.v)..{
         panel(if settings.panel { "ViewPanel" } else { "EmptyPanel" }, SizeFlags::EXPAND_FILL, SizeFlags::EXPAND_FILL)..{
@@ -219,16 +221,16 @@ pub fn frame(settings: FrameSettings) {
                 if let Some((v, sep)) = settings.arrange {
                     if v {
                         vbox(sep, SizeFlags::EXPAND_FILL, SizeFlags::EXPAND_FILL)..{
-                            BODY;
+                            BODY();
                         };
                     } else {
                         hbox(sep, SizeFlags::EXPAND_FILL, SizeFlags::EXPAND_FILL)..{
-                            BODY;
+                            BODY();
                         };
                     }
                 } else {
                     margin(0, 0, 0, 0, SizeFlags::EXPAND_FILL, SizeFlags::EXPAND_FILL)..{
-                        BODY;
+                        BODY();
                     };
                 }
             };
@@ -292,4 +294,64 @@ pub fn rgb_to_okhsl(r: f32, g: f32, b: f32) -> Vec3 {
     let rgb = Srgb::new(r, g, b);
     let hsv = Okhsl::from_color(rgb.into_format());
     vec3(hsv.hue.into_positive_degrees() / 360.0, hsv.saturation, hsv.lightness)
+}
+
+static TEMP_ID_COUNTER: AtomicU32 = AtomicU32::new(0);
+
+pub fn temp_id() -> u32 {
+    TEMP_ID_COUNTER.fetch_add(1, Ordering::SeqCst)
+}
+
+#[tree(SpinBox())]
+pub fn spinbox() {
+    SpinBox..{
+        INIT(update_on_text_changed = true, select_all_on_focus = true);
+        {
+            if __builder.init() {
+                __builder.node().get_line_edit().unwrap().set_context_menu_enabled(false);
+            }
+        }
+        BODY();
+    };
+}
+
+#[tree(Node(Gd<Window>))]
+pub fn subwindow(size: IVec2, title: &str, init: &mut OnReady<Gd<Window>>) {
+    Window..{
+        INIT(
+            visible = false,
+            initial_position = WindowInitialPosition::CENTER_MAIN_WINDOW_SCREEN,
+            force_native = true,
+            transient = true,
+            unresizable = true,
+            exclusive = true,
+            minimize_disabled = true,
+            maximize_disabled = true,
+            size = size.to_godot(),
+            title = title,
+            theme = memo_res::<Theme>("res://resources/themes/GlobalTheme.tres"),
+        );
+        {
+            if __builder.init() {
+                init.init(__builder.node());
+                __builder.node().signals().close_requested().connect_self(|slef| {
+                    slef.hide();
+                });
+                __builder.node().signals().window_input().connect_self(|slef, event| {
+                    match_class! { event,
+                        event @ InputEventKey => {
+                            if event.is_pressed() && event.get_keycode() == Key::ESCAPE {
+                                slef.hide();
+                            }
+                        },
+                        _ => {}
+                    }
+                });
+            }
+        }
+        PanelContainer..{
+            INIT(theme_type_variation = "SubwindowPanel", anchors_preset = LayoutPreset::FULL_RECT);
+            BODY(init.clone());
+        };
+    };
 }

@@ -31,7 +31,7 @@ pub enum MenuPopupItem {
     Separator,
 }
 
-#[tree(Node)]
+#[tree(Node())]
 pub fn menu_popup(name: &str, id: &str, menu: &MenuPopup, state: &mut State) {
     PopupMenu..{
         INIT(name = name, hide_on_checkable_item_selection = false);
